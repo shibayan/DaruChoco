@@ -1,4 +1,5 @@
-﻿using System.IO;
+﻿using System.Collections.Concurrent;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -14,7 +15,7 @@ namespace DaruChoco.Hubs
         private static long _honmeiCount;
         private static long _homoCount;
 
-        private static int _userCount;
+        private static readonly ConcurrentDictionary<string, bool> _connections = new ConcurrentDictionary<string, bool>(); 
 
         public static void Serialize(string path)
         {
@@ -61,27 +62,29 @@ namespace DaruChoco.Hubs
 
         public override Task OnConnected()
         {
-            _userCount += 1;
+            _connections.TryAdd(Context.ConnectionId, true);
 
             Clients.All.NotifyCount(_giriCount, _honmeiCount, _homoCount);
 
-            return Clients.All.NotifyUserCount(_userCount);
+            return Clients.All.NotifyUserCount(_connections.Count);
         }
 
         public override Task OnDisconnected()
         {
-            _userCount -= 1;
+            bool value;
 
-            return Clients.All.NotifyUserCount(_userCount);
+            _connections.TryRemove(Context.ConnectionId, out value);
+
+            return Clients.All.NotifyUserCount(_connections.Count);
         }
 
         public override Task OnReconnected()
         {
-            _userCount += 1;
+            _connections.TryAdd(Context.ConnectionId, true);
 
             Clients.All.NotifyCount(_giriCount, _honmeiCount, _homoCount);
 
-            return Clients.All.NotifyUserCount(_userCount);
+            return Clients.All.NotifyUserCount(_connections.Count);
         }
     }
 }
